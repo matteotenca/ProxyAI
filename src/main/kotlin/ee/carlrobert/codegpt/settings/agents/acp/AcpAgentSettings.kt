@@ -27,8 +27,34 @@ class AcpAgentSettings :
     fun setEnabledPresetIds(ids: Collection<String>) {
         state.enabledAgentIds = ids.distinct().toMutableList()
     }
+
+    fun getCustomCommand(presetId: String): String? {
+        return state.customCommands[presetId]
+    }
+
+    fun setCustomCommand(presetId: String, command: String) {
+        ExternalAcpAgents.setCommand(presetId, command)
+        state.customCommands[presetId] = command
+    }
+
+    fun clearCustomCommand(presetId: String) {
+        state.customCommands.remove(presetId)
+    }
+
+    fun getCustomArgs(presetId: String): String? = state.customArgs[presetId]
+
+    fun setCustomArgs(presetId: String, args: String) {
+        ExternalAcpAgents.setArgs(presetId, args.split(" "))
+        state.customArgs[presetId] = args
+    }
+
+    fun clearCustomArgs(presetId: String) {
+        state.customArgs.remove(presetId)
+    }
 }
 
 class AcpAgentSettingsState : BaseState() {
     var enabledAgentIds by list<String>()
+    var customCommands by map<String, String>()
+    var customArgs by map<String, String>()
 }

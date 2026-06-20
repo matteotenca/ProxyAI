@@ -14,8 +14,10 @@ import ee.carlrobert.codegpt.agent.external.AcpIcons
 import ee.carlrobert.codegpt.agent.external.ExternalAcpAgents
 import java.awt.Component
 import java.awt.Dimension
+import javax.swing.DefaultCellEditor
 import javax.swing.JComponent
 import javax.swing.JTable
+import javax.swing.JTextField
 import javax.swing.event.DocumentEvent
 import javax.swing.table.AbstractTableModel
 import javax.swing.table.DefaultTableCellRenderer
@@ -96,6 +98,7 @@ class AcpAgentSettingsForm(project: Project) {
         rowSorter.setSortable(COL_NAME, false)
         rowSorter.setSortable(COL_VENDOR, false)
         rowSorter.setSortable(COL_COMMAND, false)
+        rowSorter.setSortable(COL_ARGUMENTS, false)
 
         table.columnModel.getColumn(COL_ENABLED).apply {
             minWidth = JBUI.scale(36)
@@ -104,7 +107,14 @@ class AcpAgentSettingsForm(project: Project) {
         }
         table.columnModel.getColumn(COL_NAME).preferredWidth = JBUI.scale(170)
         table.columnModel.getColumn(COL_VENDOR).preferredWidth = JBUI.scale(90)
-        table.columnModel.getColumn(COL_COMMAND).preferredWidth = JBUI.scale(360)
+        table.columnModel.getColumn(COL_COMMAND).apply {
+            preferredWidth = JBUI.scale(280)
+            cellEditor = DefaultCellEditor(JTextField())
+        }
+        table.columnModel.getColumn(COL_ARGUMENTS).apply {
+            preferredWidth = JBUI.scale(280)
+            cellEditor = DefaultCellEditor(JTextField())
+        }
     }
 
     private fun installSearch() {
@@ -127,7 +137,8 @@ class AcpAgentSettingsForm(project: Project) {
                         preset.displayName,
                         preset.vendor,
                         preset.description.orEmpty(),
-                        preset.fullCommand()
+                        preset.fullCommand(),
+                        preset.args.joinToString(" ")
                     ).joinToString(" ").lowercase().contains(query)
                 }
             }
@@ -138,7 +149,7 @@ class AcpAgentSettingsForm(project: Project) {
 
         override fun getRowCount(): Int = presets.size
 
-        override fun getColumnCount(): Int = 4
+        override fun getColumnCount(): Int = 5
 
         override fun getColumnName(column: Int): String {
             return when (column) {
@@ -146,6 +157,7 @@ class AcpAgentSettingsForm(project: Project) {
                 COL_NAME -> "Agent"
                 COL_VENDOR -> "Vendor"
                 COL_COMMAND -> "Command"
+                COL_ARGUMENTS -> "Arguments"
                 else -> ""
             }
         }
@@ -159,7 +171,7 @@ class AcpAgentSettingsForm(project: Project) {
         }
 
         override fun isCellEditable(rowIndex: Int, columnIndex: Int): Boolean {
-            return columnIndex == COL_ENABLED
+            return columnIndex == COL_ENABLED || columnIndex == COL_COMMAND || columnIndex == COL_ARGUMENTS
         }
 
         override fun getValueAt(rowIndex: Int, columnIndex: Int): Any {
@@ -168,21 +180,44 @@ class AcpAgentSettingsForm(project: Project) {
                 COL_ENABLED -> preset.id in selectedPresetIds
                 COL_NAME -> preset.displayName
                 COL_VENDOR -> preset.vendor
-                COL_COMMAND -> preset.fullCommand()
+                COL_COMMAND -> settings.getCustomCommand(preset.id) ?: preset.command
+                COL_ARGUMENTS -> settings.getCustomArgs(preset.id) ?: preset.args.joinToString(" ")
                 else -> ""
             }
         }
 
         override fun setValueAt(aValue: Any?, rowIndex: Int, columnIndex: Int) {
-            if (columnIndex != COL_ENABLED) {
-                return
-            }
             val preset = presets[rowIndex]
-            val enabled = aValue as? Boolean ?: false
-            if (enabled) {
-                selectedPresetIds.add(preset.id)
-            } else {
-                selectedPresetIds.remove(preset.id)
+            when (columnIndex) {
+                COL_ENABLED -> {
+                    val enabled = aValue as? Boolean ?: false
+                    if (enabled) {
+                        selectedPresetIds.add(preset.id)
+                    } else {
+                        selectedPresetIds.remove(preset.id)
+                    }
+                }
+                COL_COMMAND -> {
+                    val command = aValue?.toString()
+                    command?.let {
+                        if (it.isNotBlank()) {
+                            settings.setCustomCommand(preset.id, command.trim())
+                            presets
+                        } else {
+                            settings.clearCustomCommand(preset.id)
+                        }
+                    }
+                }
+                COL_ARGUMENTS -> {
+                    val args = aValue?.toString()
+                    args?.let {
+                        if (it.isNotBlank()) {
+                            settings.setCustomArgs(preset.id, args.trim())
+                        } else {
+                            settings.clearCustomArgs(preset.id)
+                        }
+                    }
+                }
             }
             fireTableCellUpdated(rowIndex, columnIndex)
         }
@@ -225,5 +260,6 @@ class AcpAgentSettingsForm(project: Project) {
         const val COL_NAME = 1
         const val COL_VENDOR = 2
         const val COL_COMMAND = 3
+        const val COL_ARGUMENTS = 4
     }
 }
