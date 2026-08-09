@@ -14,10 +14,13 @@ import ee.carlrobert.codegpt.agent.external.AcpIcons
 import ee.carlrobert.codegpt.agent.external.ExternalAcpAgents
 import java.awt.Component
 import java.awt.Dimension
+import java.awt.event.ComponentEvent
+import java.awt.event.ComponentListener
 import javax.swing.DefaultCellEditor
 import javax.swing.JComponent
 import javax.swing.JTable
 import javax.swing.JTextField
+import javax.swing.ScrollPaneConstants
 import javax.swing.event.DocumentEvent
 import javax.swing.table.AbstractTableModel
 import javax.swing.table.DefaultTableCellRenderer
@@ -39,6 +42,8 @@ class AcpAgentSettingsForm(project: Project) {
     }
     private val tableModel = AcpAgentTableModel()
     private val rowSorter = TableRowSorter(tableModel)
+    private lateinit var scrollPane: JBScrollPane
+    private var initialized = false
     private val table = JBTable(tableModel).apply {
         rowSorter = this@AcpAgentSettingsForm.rowSorter
         emptyText.text = "No ACP runtimes match your search."
@@ -48,7 +53,7 @@ class AcpAgentSettingsForm(project: Project) {
         fillsViewportHeight = true
         tableHeader.reorderingAllowed = false
         tableHeader.resizingAllowed = true
-        autoResizeMode = JTable.AUTO_RESIZE_LAST_COLUMN
+        autoResizeMode = JTable.AUTO_RESIZE_OFF
         setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION)
         setDefaultRenderer(String::class.java, AcpTableCellRenderer())
     }
@@ -58,6 +63,8 @@ class AcpAgentSettingsForm(project: Project) {
         configureTable()
         installSearch()
         resetChanges()
+        initialized = true
+        recalculateColumnWidths()
     }
 
     fun createPanel(): JComponent = root
@@ -78,9 +85,17 @@ class AcpAgentSettingsForm(project: Project) {
     }
 
     private fun buildUi() {
-        val scrollPane = JBScrollPane(table).apply {
+        scrollPane = JBScrollPane(table).apply {
             border = JBUI.Borders.customLine(UIUtil.getTooltipSeparatorColor(), 1)
-            horizontalScrollBarPolicy = JBScrollPane.HORIZONTAL_SCROLLBAR_NEVER
+            horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED
+            viewport.addComponentListener(object : ComponentListener {
+                override fun componentResized(e: ComponentEvent) {
+                    if (initialized) recalculateColumnWidths()
+                }
+                override fun componentMoved(e: ComponentEvent) {}
+                override fun componentShown(e: ComponentEvent) {}
+                override fun componentHidden(e: ComponentEvent) {}
+            })
         }
 
         root.border = JBUI.Borders.empty(8)
@@ -100,21 +115,98 @@ class AcpAgentSettingsForm(project: Project) {
         rowSorter.setSortable(COL_COMMAND, false)
         rowSorter.setSortable(COL_ARGUMENTS, false)
 
+        val fontMetrics = table.getFontMetrics(table.font)
+        val padding = JBUI.scale(16)
+
+        fun measureColumnWidth(colIndex: Int): Int {
+            var max = 0
+            for (i in presets.indices) {
+                val text = tableModel.getValueAt(i, colIndex).toString()
+                max = max.coerceAtLeast(fontMetrics.stringWidth(text))
+            }
+            return JBUI.scale(padding) + max
+        }
+
+        val namePref = measureColumnWidth(COL_NAME)
+        val vendorPref = measureColumnWidth(COL_VENDOR)
+        val commandPref = measureColumnWidth(COL_COMMAND)
+        val argsPref = measureColumnWidth(COL_ARGUMENTS)
+
         table.columnModel.getColumn(COL_ENABLED).apply {
             minWidth = JBUI.scale(36)
             maxWidth = JBUI.scale(36)
             preferredWidth = JBUI.scale(36)
         }
-        table.columnModel.getColumn(COL_NAME).preferredWidth = JBUI.scale(170)
-        table.columnModel.getColumn(COL_VENDOR).preferredWidth = JBUI.scale(90)
+        table.columnModel.getColumn(COL_NAME).apply {
+            preferredWidth = namePref
+            minWidth = JBUI.scale(50)
+        }
+        table.columnModel.getColumn(COL_VENDOR).apply {
+            preferredWidth = vendorPref
+            minWidth = JBUI.scale(50)
+        }
         table.columnModel.getColumn(COL_COMMAND).apply {
-            preferredWidth = JBUI.scale(280)
+            preferredWidth = commandPref
+            minWidth = JBUI.scale(80)
             cellEditor = DefaultCellEditor(JTextField())
         }
         table.columnModel.getColumn(COL_ARGUMENTS).apply {
-            preferredWidth = JBUI.scale(280)
+            preferredWidth = argsPref
+            minWidth = JBUI.scale(60)
             cellEditor = DefaultCellEditor(JTextField())
         }
+    }
+
+    private fun recalculateColumnWidths() {
+        val enabledCol = table.columnModel.getColumn(COL_ENABLED)
+        val nameCol = table.columnModel.getColumn(COL_NAME)
+        val vendorCol = table.columnModel.getColumn(COL_VENDOR)
+        val commandCol = table.columnModel.getColumn(COL_COMMAND)
+        val argsCol = table.columnModel.getColumn(COL_ARGUMENTS)
+
+        val enabledWidth = JBUI.scale(36)
+        val namePref = nameCol.preferredWidth
+        val viewportWidth = scrollPane.viewport.size.width
+        val remaining = viewportWidth - enabledWidth - namePref
+
+        if (remaining <= 0) return
+
+        // Name column always stays at its content-measured width
+        nameCol.width = namePref
+
+        val vendorPref = vendorCol.preferredWidth
+        val commandPref = commandCol.preferredWidth
+        val argsPref = argsCol.preferredWidth
+        val minSum = vendorCol.minWidth + commandCol.minWidth + argsCol.minWidth
+
+        if (remaining >= minSum) {
+            val totalPref = vendorPref + commandPref + argsPref
+
+            if (remaining >= totalPref) {
+                // Plenty of room: Vendor/Command at preferred, Arguments absorbs rest
+                vendorCol.width = vendorPref
+                commandCol.width = commandPref
+                argsCol.width = remaining - vendorCol.width - commandCol.width
+            } else {
+                // Tight: proportional shrink below preferred but above minWidth
+                val ratio = remaining.toDouble() / totalPref
+                var allocated = 0
+
+                for ((idx, col) in mapOf(
+                    COL_VENDOR to vendorCol,
+                    COL_COMMAND to commandCol
+                )) {
+                    val prefs = mapOf(COL_VENDOR to vendorPref, COL_COMMAND to commandPref)
+                    val ideal = (prefs[idx]!! * ratio).toInt().coerceIn(col.minWidth, prefs[idx])
+                    col.width = ideal
+                    allocated += ideal
+                }
+
+                argsCol.width = remaining - allocated
+            }
+        }
+
+        enabledCol.width = enabledWidth
     }
 
     private fun installSearch() {
@@ -199,23 +291,18 @@ class AcpAgentSettingsForm(project: Project) {
                 }
                 COL_COMMAND -> {
                     val command = aValue?.toString()
-                    command?.let {
-                        if (it.isNotBlank()) {
-                            settings.setCustomCommand(preset.id, command.trim())
-                            presets
-                        } else {
-                            settings.clearCustomCommand(preset.id)
-                        }
+                    if (!command.isNullOrBlank()) {
+                        settings.setCustomCommand(preset.id, command.trim())
+                    } else {
+                        settings.clearCustomCommand(preset.id)
                     }
                 }
                 COL_ARGUMENTS -> {
                     val args = aValue?.toString()
-                    args?.let {
-                        if (it.isNotBlank()) {
-                            settings.setCustomArgs(preset.id, args.trim())
-                        } else {
-                            settings.clearCustomArgs(preset.id)
-                        }
+                    if (!args.isNullOrBlank()) {
+                        settings.setCustomArgs(preset.id, args.trim())
+                    } else {
+                        settings.clearCustomArgs(preset.id)
                     }
                 }
             }
