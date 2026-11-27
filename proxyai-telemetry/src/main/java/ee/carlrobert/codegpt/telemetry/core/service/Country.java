@@ -10,12 +10,14 @@
  ******************************************************************************/
 package ee.carlrobert.codegpt.telemetry.core.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.intellij.openapi.diagnostic.Logger;
 import ee.carlrobert.codegpt.telemetry.core.util.Lazy;
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TimeZone;
@@ -68,12 +70,10 @@ public class Country {
         return get(alternative);
     }
 
-    private <V> Map<String, V> deserialize(String file) {
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            InputStream input = getClass().getResourceAsStream(file);
-            TypeReference<Map<String, V>> typeRef = new TypeReference<>() {};
-            return mapper.readValue(input, typeRef);
+    private Map<String, Map<String, String>> deserialize(String file) {
+        try (Reader input = new InputStreamReader(getClass().getResourceAsStream(file), StandardCharsets.UTF_8)) {
+            // numeric fields (e.g. "u": -180) are read as strings; only "c" and "a" are used
+            return new Gson().fromJson(input, new TypeToken<Map<String, Map<String, String>>>() {}.getType());
         } catch (IOException e) {
             LOGGER.warn("Could not load file " + file, e);
             return new HashMap<>();

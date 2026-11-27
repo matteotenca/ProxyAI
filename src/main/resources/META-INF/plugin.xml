@@ -4,6 +4,9 @@
   <vendor email="carlrobertoh@gmail.com" url="https://carlrobert.ee">Carl-Robert Linnupuu</vendor>
   <depends>com.intellij.modules.platform</depends>
   <depends>com.intellij.modules.lang</depends>
+  <depends>com.intellij.modules.vcs</depends>
+  <depends>com.intellij.modules.jcef</depends>
+  <depends>com.intellij.modules.xdebugger</depends>
   <depends optional="true" config-file="plugin-kotlin.xml">org.jetbrains.kotlin</depends>
   <depends optional="true" config-file="plugin-java.xml">com.intellij.modules.java</depends>
   <depends optional="true" config-file="plugin-javascript.xml">JavaScript</depends>

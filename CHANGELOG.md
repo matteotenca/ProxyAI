@@ -4,7 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.8.3-263] - 2026-11-27
+
+### Added
+
+- Support for IntelliJ Platform 2026.3 (build 263)
+- Android Studio build target, selected with `IDE_TYPE=android`
+
+### Changed
+
+- Minimum supported platform is now 2026.3 / build 263; 2026.1 and 2026.2 are no longer supported
+- Plugin now requires the bundled VCS, JCEF and debugger platform plugins
 
 ## [3.8.2-261] - 2026-05-27
 
@@ -1348,6 +1358,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `OPENAI_API_KEY` persistence, key is saved in the OS password safe from now on
 
 [Unreleased]: https://github.com/carlrobertoh/ProxyAI/compare/v3.8.2-261...HEAD
+[3.8.3-263]: https://github.com/carlrobertoh/ProxyAI/compare/v3.8.2-261...v3.8.3-263
 [3.8.2-261]: https://github.com/carlrobertoh/ProxyAI/compare/v3.8.1-261...v3.8.2-261
 [3.8.1-261]: https://github.com/carlrobertoh/ProxyAI/compare/v3.8.0-241.1...v3.8.1-261
 [3.8.0-241.1]: https://github.com/carlrobertoh/ProxyAI/compare/v3.7.5-241.1...v3.8.0-241.1

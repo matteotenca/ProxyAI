@@ -58,12 +58,11 @@ group = properties("pluginGroup").get()
 version = properties("pluginVersion").get() + "-" + properties("pluginSinceBuild").get()
 
 repositories {
-    mavenCentral()
-    gradlePluginPortal()
-
     intellijPlatform {
         defaultRepositories()
     }
+    mavenCentral()
+    gradlePluginPortal()
 }
 
 changelog {
@@ -82,6 +81,13 @@ dependencies {
         bundledPlugin("com.intellij.java")
         bundledPlugin("org.jetbrains.kotlin")
         bundledPlugin("Git4Idea")
+        // 2026.3 moved these out of the core platform classpath
+        bundledPlugin("com.intellij.platform.vcs")
+        bundledPlugin("com.intellij.modules.jcef")
+        bundledModule("intellij.platform.vcs.core")
+        bundledModule("intellij.platform.debugger")
+        bundledModule("intellij.platform.debugger.impl")
+        bundledModule("intellij.platform.ide.updateChecker")
 
         testFramework(TestFrameworkType.Platform)
         testFramework(TestFrameworkType.JUnit5)
@@ -159,7 +165,8 @@ intellijPlatform {
 
         val changelog = project.changelog // local variable for configuration cache compatibility
         // Get the latest available change notes from the changelog file
-        changeNotes = properties("pluginVersion").map { pluginVersion ->
+        // changelog headers use the full "<pluginVersion>-<sinceBuild>" version
+        changeNotes = version.map { pluginVersion ->
             with(changelog) {
                 renderItem(
                     (getOrNull(pluginVersion) ?: getUnreleased())

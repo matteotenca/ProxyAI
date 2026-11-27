@@ -29,7 +29,8 @@ dependencies {
     intellijPlatform {
       val type = providers.gradleProperty("platformType").get()
       val version = providers.gradleProperty("platformVersion")
-      if (type == "IC") {
+      // 2025.3+ ships one unified IntelliJ IDEA artifact for both IC and IU
+      if (type == "IC" || type == "IU") {
         intellijIdea(version)
       } else {
         create(type, version)
