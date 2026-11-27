@@ -25,7 +25,7 @@ import org.jetbrains.annotations.Nullable;
 public class TelemetryConfigurable implements SearchableConfigurable {
 
   /* plugin.xml > applicationConfigurable > id */
-  public static final String ID = "tools.preferences.carlrobert.telemetry";
+  public static final String ID = "tools.preferences.codegpt.telemetry";
 
   private static final Logger LOGGER = Logger.getInstance(TelemetryConfigurable.class);
 

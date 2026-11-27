@@ -91,10 +91,11 @@ dependencies {
 
         testFramework(TestFrameworkType.Platform)
         testFramework(TestFrameworkType.JUnit5)
-    }
 
-    implementation(project(":proxyai-telemetry"))
-    implementation(project(":proxyai-treesitter"))
+        // merge into the main jar; IPGP 2.20 otherwise ships them as undeclared content modules in lib/modules
+        pluginComposedModule(implementation(project(":proxyai-telemetry")))
+        pluginComposedModule(implementation(project(":proxyai-treesitter")))
+    }
 
     implementation(platform(libs.slf4j.bom))
     implementation(platform(libs.jackson.bom))
