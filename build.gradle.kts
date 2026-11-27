@@ -32,6 +32,20 @@ fun properties(key: String): Provider<String> {
 
 fun environment(key: String) = providers.environmentVariable(key)
 
+val ideType: String = environment("IDE_TYPE").getOrElse("idea")
+
+fun asProperty(key: String): Provider<String> {
+    if (ideType == "android") {
+        val asFile = File(projectDir, "gradle.properties.as")
+        if (asFile.exists()) {
+            val prop = loadProperties(asFile.absolutePath).getProperty(key)
+                ?: providers.gradleProperty(key).get()
+            return providers.provider { prop }
+        }
+    }
+    return properties(key)
+}
+
 plugins {
     id("proxyai.java-conventions")
     id("org.jetbrains.intellij.platform")
@@ -59,7 +73,11 @@ changelog {
 
 dependencies {
     intellijPlatform {
-        intellijIdea(properties("platformVersion"))
+        if (ideType == "android") {
+            androidStudio(asProperty("platformVersion"))
+        } else {
+            intellijIdea(properties("platformVersion"))
+        }
 
         bundledPlugin("com.intellij.java")
         bundledPlugin("org.jetbrains.kotlin")
@@ -120,9 +138,10 @@ tasks.register<Exec>("updateSubmodules") {
 }
 
 intellijPlatform {
+    buildSearchableOptions = false
     pluginConfiguration {
-        name = properties("pluginName")
-        version = properties("pluginVersion").get() + "-" + properties("pluginSinceBuild").get()
+        name = asProperty("pluginName").get()
+        version = properties("pluginVersion").get() + "-" + asProperty("pluginSinceBuild").get()
 
         description =
             providers.fileContents(layout.projectDirectory.file("DESCRIPTION.md")).asText.map {
@@ -152,8 +171,8 @@ intellijPlatform {
         }
 
         ideaVersion {
-            sinceBuild = properties("pluginSinceBuild")
-            untilBuild = properties("pluginUntilBuild")
+            sinceBuild = asProperty("pluginSinceBuild").get()
+            untilBuild = properties("pluginUntilBuild").get()
         }
     }
 

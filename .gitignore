@@ -47,3 +47,10 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+/.proxyai
+/.idea
+/.intellijPlatform
+/cleanall.cmd
+/hs*.log
+/replay_*.log
