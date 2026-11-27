@@ -1,6 +1,7 @@
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.markdownToHTML
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.intellij.platform.gradle.tasks.RunIdeTask
 import java.io.FileInputStream
@@ -33,6 +34,16 @@ fun properties(key: String): Provider<String> {
 fun environment(key: String) = providers.environmentVariable(key)
 
 val ideType: String = environment("IDE_TYPE").getOrElse("idea")
+
+// plugin.xml hard-depends only on platform modules (Java/Kotlin/JS are optional), so the
+// IDEA-built jar installs as-is in these IDEs; they get verification and run tasks, not separate builds
+val otherIdes = mapOf(
+    "RustRover" to IntelliJPlatformType.RustRover,
+    "CLion" to IntelliJPlatformType.CLion,
+    "PhpStorm" to IntelliJPlatformType.PhpStorm,
+    "WebStorm" to IntelliJPlatformType.WebStorm,
+    "PyCharm" to IntelliJPlatformType.PyCharm,
+)
 
 fun asProperty(key: String): Provider<String> {
     if (ideType == "android") {
@@ -187,6 +198,7 @@ intellijPlatform {
     pluginVerification {
         ides {
             recommended()
+            otherIdes.values.forEach { create(it, properties("platformVersion")) }
         }
     }
 
@@ -221,6 +233,20 @@ if (customIdePath != null) {
         description = "Start custom idea sandbox"
         sandboxDirectory = file(customIdePath)
         environment("ENVIRONMENT", "LOCAL")
+    }
+}
+
+intellijPlatformTesting {
+    runIde {
+        otherIdes.forEach { (name, ideType) ->
+            register("run$name") {
+                type = ideType
+                version = properties("platformVersion")
+                task {
+                    environment("ENVIRONMENT", "LOCAL")
+                }
+            }
+        }
     }
 }
 
