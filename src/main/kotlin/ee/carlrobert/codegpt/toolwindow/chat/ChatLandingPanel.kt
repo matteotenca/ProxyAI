@@ -27,6 +27,7 @@ import ee.carlrobert.codegpt.util.coroutines.CoroutineDispatchers
 import java.awt.BorderLayout
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
+import java.util.UUID
 import javax.swing.Box
 import javax.swing.JComponent
 import javax.swing.JPanel
@@ -37,6 +38,10 @@ class ChatLandingPanel(
 ) : BorderLayoutPanel(), Disposable {
 
     private val tagManager = TagManager()
+
+    // MCP servers attached before the first message are keyed by this id; the started conversation adopts it.
+    @Volatile
+    private var draftConversationId: UUID = UUID.randomUUID()
     private val toolWindowScrollablePanel = ChatToolWindowScrollablePanel()
     private val psiStructureRepository = PsiStructureRepository(
         this,
@@ -59,7 +64,8 @@ class ChatLandingPanel(
         tagManager,
         this::handleSubmit,
         this::handleCancel,
-        true
+        true,
+        conversationIdProvider = { draftConversationId }
     )
 
     init {
@@ -90,6 +96,8 @@ class ChatLandingPanel(
         application.executeOnPooledThread {
             val selectedTags = userInputPanel.getSelectedTags()
             val conversation = ConversationService.getInstance().startConversation(project)
+            conversation.id = draftConversationId
+            draftConversationId = UUID.randomUUID()
             val initialState =
                 ToolWindowInitialState(conversation, selectedTags, userInputPanel.getChatMode())
             val message = ChatContextSupport.buildMessage(project, text, selectedTags)
